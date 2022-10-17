@@ -1,0 +1,192 @@
+/*
+        11. Formulați în limbaj natural și implementați 5 cereri SQL complexe ce vor utiliza, în
+    ansamblul lor, următoarele elemente:
+    • operație join pe cel puțin 4 tabele
+    • filtrare la nivel de linii
+    • subcereri sincronizate în care intervin cel puțin 3 tabele
+    • subcereri nesincronizate în care intervin cel puțin 3 tabele
+    • grupări de date, funcții grup, filtrare la nivel de grupuri
+    • ordonări
+    • utilizarea a cel puțin 2 funcții pe șiruri de caractere, 2 funcții pe date calendaristice, a
+    funcțiilor NVL și DECODE, a cel puțin unei expresii CASE
+    • utilizarea a cel puțin 1 bloc de cerere (clauza WITH)
+*/
+
+/*
+    Sa se afiseze bossul final pentru fiecare raid si loot-ul care poate pica de la acel BOSS.
+    Se considera BOSS final BOSS-ul care are damage-ul cel mai mare.
+    In caz ca un loot nu are pret se considera ca acesta nu poate fi vandut.
+ */
+WITH MaxDamage(max_damage, cod_raid) AS
+         (SELECT MAX(BOSS.damage), Raid.id_raid
+          FROM (Raid JOIN Mapa ON Raid.id_raid = Mapa.id_raid)
+                   JOIN BOSS ON BOSS.id_boss = Mapa.id_boss
+          GROUP BY Raid.id_raid)
+SELECT Raid.nume                                     AS "Nume raid",
+       BOSS.nume                                     AS "BOSS final",
+       Mapa.nume                                     AS "Nume mapa",
+       Loot.nume                                     AS "Nume loot",
+       NVL(TO_CHAR(Loot.pret), 'Nu poate fi vandut') AS "Pret"
+FROM MaxDamage,
+     ((Raid JOIN Mapa ON Raid.id_raid = Mapa.id_raid)
+         JOIN BOSS ON BOSS.id_boss = Mapa.id_boss)
+         JOIN Loot ON Loot.id_boss = BOSS.id_boss
+WHERE BOSS.damage = MaxDamage.max_damage
+  AND Raid.id_raid = MaxDamage.cod_raid;
+
+/*
+    Pentru fiecare jucator sa se afiseze primul BOSS invins, raidul si data la care a avut loc. Daca sunt mai multi bossi se afiseaza toti."
+ */
+SELECT jucator_extern.nume  AS "Jucator",
+       BOSS.nume            AS "BOSS",
+       Raid.nume            AS "Raid",
+       Instanta.data_creare AS "Data"
+FROM Jucator jucator_extern
+         JOIN Participa ON jucator_extern.id_jucator = Participa.id_jucator
+         JOIN Raid ON Raid.id_raid = Participa.id_raid
+         JOIN Mapa ON Mapa.id_raid = Raid.id_raid
+         JOIN BOSS ON BOSS.id_boss = Mapa.id_boss
+         JOIN Instanta ON Instanta.id_instanta = Participa.id_instanta
+WHERE Instanta.data_creare = (SELECT MIN(Instanta.data_creare)
+                              FROM Jucator
+                                       JOIN Participa ON Jucator.id_jucator = Participa.id_jucator
+                                       JOIN Instanta ON Instanta.id_instanta = Participa.id_instanta
+                              WHERE Jucator.id_jucator = jucator_extern.id_jucator);
+
+/*
+    Sa se determine cei mai buni 5 jucatori ai lunii in cadrul raidului 'Sanctum of domination'. Jucatorii vor fi sortati dupa numarul de bossi invinsi descrescator.
+    De asemenea, jucatorii o sa primeasca si un titlu dupa regula:
+        fie nrB = numarul de bossi invinsi
+        daca nrB<=2: titlul "Lil' Lazy"
+        daca 2<nrB<=5: titlul "The Slayer"
+        daca nrB>5: titlul "The Invincible"
+ */
+SELECT *
+FROM (SELECT CASE
+                 WHEN COUNT(*) <= 2 THEN CONCAT(Jucator.nume, ', Lil'' Lazy')
+                 WHEN COUNT(*) <= 5 THEN CONCAT(Jucator.nume, ', The Slayer')
+                 ELSE CONCAT(Jucator.nume, ', The Invincible')
+                 END  AS "Nume jucator",
+             COUNT(*) AS "Numar bossi infranti"
+      FROM Jucator
+               JOIN Participa ON Jucator.id_jucator = Participa.id_jucator
+               JOIN Raid ON Raid.id_raid = Participa.id_raid
+               JOIN Mapa ON Mapa.id_raid = Raid.id_raid
+               JOIN BOSS ON BOSS.id_boss = Mapa.id_boss
+               JOIN Instanta ON Instanta.id_instanta = Participa.id_instanta
+      WHERE LOWER(Raid.nume) LIKE 'sanctum of domination'
+        AND EXTRACT(MONTH FROM SYSDATE) = EXTRACT(MONTH FROM Instanta.data_creare)
+      GROUP BY Jucator.nume
+      ORDER BY COUNT(*) DESC)
+WHERE ROWNUM <= 5;
+
+/*
+    Sa se afiseze loot-urile care au cel putin un bonus mari mare decat oricare bonus oferit de "Sylvanas Windrunner".
+ */
+SELECT Loot.nume AS "Nume loot",
+       Loot.pret
+FROM Loot
+         JOIN Are ON Are.id_loot = Loot.id_loot
+         JOIN Bonus ON Bonus.id_bonus = Are.id_bonus
+WHERE Bonus.cantitate > ALL (SELECT Bonus.cantitate
+                             FROM BOSS
+                                      JOIN Loot ON BOSS.id_boss = Loot.id_boss
+                                      JOIN Are ON Are.id_loot = Loot.id_loot
+                                      JOIN Bonus ON Bonus.id_bonus = Are.id_bonus
+                             WHERE BOSS.nume LIKE 'Sylvanas Windrunner');
+
+/*
+    Pentru fiecare rol sa se afiseze cei mai buni jucatori de anul acesta. Consideram ca cel mai bun jucator
+    este acela care a participat la cele mai multe raiduri in complaratie cu ceilalti jucatori cu acelasi rol.
+    Jucatorii vor primi si un titlu in functie de rolul lor.
+ */
+SELECT Jucator_extern.nume                 AS "Nume jucator",
+       DECODE(Jucator_extern.rol, 'healer', 'cel mai bun healer',
+                                  'tank',   'cel mai bun tank',
+                                            'cel mai bun damage-dealer') AS "Titlu"
+FROM Jucator Jucator_extern
+         JOIN Participa ON Jucator_extern.id_jucator = Participa.id_jucator
+         JOIN Instanta ON Participa.id_instanta = Instanta.id_instanta
+         INNER JOIN (SELECT rol, MAX("nr_instante") maxim
+                     FROM (SELECT Jucator.rol,
+                                  (COUNT(CASE
+                                             WHEN EXTRACT(YEAR FROM Instanta.data_creare) = EXTRACT(YEAR FROM SYSDATE)
+                                                 THEN 1 END)) AS "nr_instante"
+                           FROM Jucator
+                                    JOIN Participa ON Jucator.id_jucator = Participa.id_jucator
+                                    JOIN Instanta ON Participa.id_instanta = Instanta.id_instanta
+                           GROUP BY Jucator.nume, Jucator.rol) aux
+                     GROUP BY aux.rol) A ON A.rol = Jucator_extern.rol
+GROUP BY Jucator_extern.nume, A.maxim, Jucator_extern.rol
+HAVING COUNT(CASE WHEN EXTRACT(YEAR FROM Instanta.data_creare) = EXTRACT(YEAR FROM SYSDATE) THEN 1 END) = A.maxim;
+---------------------------------------------------------------------------------------------------------------------
+
+/*
+    12. Implementarea a 3 operații de actualizare sau suprimare a datelor utilizând subcereri.
+ */
+
+/*
+    Sa se scada 20% din viata BOSS-ilor care au damage-ul mai mare decat media.
+ */
+UPDATE BOSS
+SET viata=viata - viata * 0.2
+WHERE damage > (SELECT AVG(damage)
+                FROM BOSS);
+
+/*
+    Sa se modifice numere raidului "The Nighthold" in "The Elfhold" daca au paricipat la acest raid.
+ */
+UPDATE Raid
+SET nume='The Elfhold'
+WHERE Raid.id_raid IN (SELECT Raid.id_raid
+                       FROM Jucator
+                                JOIN Participa ON Jucator.id_jucator = Participa.id_jucator
+                                JOIN Raid ON Raid.id_raid = Participa.id_raid
+                       WHERE Jucator.rasa LIKE '%elf%'
+                         AND LOWER(Raid.nume) = 'the nighthold');
+
+/*
+    Sa se adauge "for Mage" la numele loot-urilor care au macar un bonus cu numele "Versatility".
+ */
+UPDATE Loot
+SET nume= CONCAT(nume, ' for Mage')
+WHERE loot.id_loot IN (SELECT loot.id_loot
+                       FROM loot
+                                JOIN are ON Loot.id_loot = Are.id_loot
+                                JOIN bonus ON Are.id_bonus = Bonus.id_bonus
+                       WHERE LOWER(Bonus.nume) = 'versatility');
+------------------------------------------------------------------------------------------
+
+/*
+    14. Crearea unei vizualizări compuse. Dați un exemplu de operație LMD permisă pe
+    vizualizarea respectivă și un exemplu de operație LMD nepermisă.
+ */
+CREATE OR REPLACE VIEW V AS
+    (SELECT Boss.id_boss, Boss.nume, Boss.viata, Boss.damage, Boss.mana, Mapa.id_mapa as ID_MAPA, Mapa.nume as NUME_MAPA
+    FROM Boss join Mapa on BOSS.id_boss = Mapa.id_boss);
+
+-- OPERATIE LMD PERMISA
+-- midificare in tabelul care are cheia primara din join
+UPDATE V
+SET NUME_MAPA='Elisande''s throne'
+WHERE nume='Elisande';
+
+-- OPERATIE LMD NEPERMISA
+UPDATE V
+SET nume='Verresa Windrunner'
+where NUME_MAPA='Pinnacle of Domination';
+------------------------------------------------------------------------------------------
+
+/*
+    15. Crearea unui index care să optimizeze o cerere de tip căutare cu 2 criterii. Specificați cererea.
+
+    CEREREA:
+     Sa se afiseze toti jucatorii cu clasa "priest" din realm-ul "Silvermoon".
+ */
+
+SELECT nume
+FROM Jucator
+WHERE lower(realm) like 'silvermoon' and lower(clasa) like 'priest';
+
+CREATE INDEX JucatorIndex
+ON Jucator(clasa, realm);

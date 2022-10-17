@@ -1,0 +1,355 @@
+CREATE TABLE Raid
+(
+    id_raid         int PRIMARY KEY,
+    nume            varchar(255),
+    locatie         varchar(255),
+    nr_max_jucatori int CHECK (nr_max_jucatori BETWEEN 5 AND 45),
+    nivel_min       int CHECK (nivel_min BETWEEN 10 AND 60)
+);
+
+CREATE TABLE Jucator
+(
+    id_jucator int PRIMARY KEY,
+    nume       varchar(255),
+    realm      varchar(255),
+    rasa       varchar(255),
+    gen        varchar(1) CHECK (gen LIKE 'M' OR gen LIKE 'F'),
+    clasa      varchar(255),
+    rol        varchar(255) CHECK (rol LIKE 'healer' OR rol LIKE 'tank' OR rol LIKE 'damage-dealer'),
+    nivel      int DEFAULT 1 CHECK (nivel BETWEEN 1 AND 60)
+);
+
+CREATE TABLE Instanta
+(
+    id_instanta int PRIMARY KEY,
+    data_creare date NOT NULL
+);
+
+CREATE TABLE BOSS
+(
+    id_boss int PRIMARY KEY,
+    nume    varchar(255),
+    viata   int,
+    damage  int,
+    mana    int
+);
+
+CREATE TABLE Mapa
+(
+    id_mapa int PRIMARY KEY,
+    nume    varchar(255),
+    id_raid int REFERENCES Raid (id_raid),
+    id_boss int REFERENCES BOSS (id_boss)
+);
+
+CREATE TABLE Inamic_intermediar
+(
+    id_inamic_intermediar int PRIMARY KEY,
+    nume                  varchar(255),
+    viata                 int,
+    damage                int
+);
+
+CREATE TABLE Abilitate
+(
+    id_abilitate int PRIMARY KEY,
+    nume         varchar(255),
+    cost_mana    int,
+    damage       int,
+    id_boss      int REFERENCES BOSS (id_boss)
+);
+
+CREATE TABLE Loot
+(
+    id_loot   int PRIMARY KEY,
+    nume      varchar(255),
+    descriere varchar(255),
+    pret      int,
+    id_boss   int REFERENCES BOSS (id_boss)
+);
+
+CREATE TABLE Bonus
+(
+    id_bonus  int PRIMARY KEY,
+    nume      varchar(255),
+    cantitate int
+);
+
+CREATE TABLE Bossfight
+(
+    id_bossfight  int PRIMARY KEY,
+    durata_maxima int NOT NULL,
+    id_boss       int REFERENCES BOSS (id_boss)
+);
+
+CREATE TABLE Etapa
+(
+    id_etapa      int PRIMARY KEY,
+    event         varchar(255),
+    procent_viata int NOT NULL,
+    id_bossghit   int REFERENCES Bossfight (id_bossfight)
+);
+
+CREATE TABLE Participa
+(
+    id_raid     int REFERENCES Raid (id_raid),
+    id_jucator  int REFERENCES Jucator (id_jucator),
+    id_instanta int REFERENCES Instanta (id_instanta),
+    PRIMARY KEY (id_raid, id_jucator, id_instanta)
+);
+
+CREATE TABLE Se_afla
+(
+    id_mapa               int REFERENCES Mapa (id_mapa),
+    id_inamic_intermediar int REFERENCES Inamic_intermediar (id_inamic_intermediar),
+    PRIMARY KEY (id_mapa, id_inamic_intermediar)
+);
+
+CREATE TABLE Are
+(
+    id_loot  int REFERENCES Loot (id_loot),
+    id_bonus int REFERENCES Bonus (id_bonus),
+    PRIMARY KEY (id_loot, id_bonus)
+);
+
+INSERT INTO Raid
+VALUES (sequence1.nextval, 'Eternal Palace', 'Nazjatar', 5, 60);
+INSERT INTO Raid
+VALUES (sequence1.nextval, 'Sanctum of Domination', 'Torghast', 5, 40);
+INSERT INTO Raid
+VALUES (sequence1.nextval, 'Icecrown Citadel', 'Icecrown', 5, 35);
+INSERT INTO Raid
+VALUES (sequence1.nextval, 'The Nighthold', 'Suramar', 5, 35);
+INSERT INTO Raid
+VALUES (sequence1.nextval, 'Court of Stars', 'Suramar', 5, 50);
+
+
+
+INSERT INTO BOSS
+VALUES (sequence1.nextval, 'Queen Azhara', 121000, 4000, 100);
+INSERT INTO BOSS
+VALUES (sequence1.nextval, 'Sylvanas Windrunner', 143000, 6000, 400);
+INSERT INTO BOSS
+VALUES (sequence1.nextval, 'Lich King', 4300, 300, 40);
+INSERT INTO BOSS
+VALUES (sequence1.nextval, 'Elisande', 6300, 700, 60);
+INSERT INTO BOSS
+VALUES (sequence1.nextval, 'Talixae Flamewreath', 100000, 3000, 600);
+
+
+
+INSERT INTO Mapa
+VALUES (sequence1.nextval, 'Queens throne', 1, 6);
+INSERT INTO Mapa (id_mapa, nume, id_raid)
+VALUES (sequence1.nextval, 'The entrance', 1);
+INSERT INTO Mapa
+VALUES (sequence1.nextval, 'Pinnacle of Domination', 2, 7);
+INSERT INTO Mapa
+VALUES (sequence1.nextval, 'The nightspire', 4, 9);
+INSERT INTO Mapa
+VALUES (sequence1.nextval, 'The Frozen Throne', 3, 8);
+INSERT INTO Mapa
+VALUES (sequence1.nextval, 'Court of Stars', 5, 10);
+
+
+
+INSERT INTO Jucator
+VALUES (sequence1.nextval, 'Elisa', 'Outland', 'Night elf', 'F', 'mage', 'damage-dealer', 60);
+INSERT INTO Jucator
+VALUES (sequence1.nextval, 'Tiana', 'Outland', 'Blood elf', 'F', 'hunter', 'damage-dealer', 50);
+INSERT INTO Jucator
+VALUES (sequence1.nextval, 'Julieta', 'Outland', 'Human', 'F', 'warrior', 'tank', 60);
+INSERT INTO Jucator
+VALUES (sequence1.nextval, 'Melissa', 'Outland', 'Night elf', 'F', 'priest', 'healer', 60);
+INSERT INTO Jucator
+VALUES (sequence1.nextval, 'Tyrande', 'Silvermoon', 'Night elf', 'F', 'priest', 'damage-dealer', 60);
+INSERT INTO Jucator
+VALUES (sequence1.nextval, 'Zara', 'Moonglave', 'High elf', 'F', 'paladin', 'healer', 55);
+
+
+
+INSERT INTO Instanta
+VALUES (sequence1.nextval, DATE'2022-06-10');
+INSERT INTO Instanta
+VALUES (sequence1.nextval, DATE'2022-06-11');
+INSERT INTO Instanta
+VALUES (sequence1.nextval, DATE'2022-06-22');
+INSERT INTO Instanta
+VALUES (sequence1.nextval, DATE'2022-07-22');
+INSERT INTO Instanta
+VALUES (sequence1.nextval, DATE'2022-07-25');
+
+
+
+INSERT INTO Participa
+VALUES (2, 15, 21);
+INSERT INTO Participa
+VALUES (2, 16, 21);
+INSERT INTO Participa
+VALUES (2, 17, 21);
+INSERT INTO Participa
+VALUES (2, 18, 21);
+INSERT INTO Participa
+VALUES (4, 19, 22);
+INSERT INTO Participa
+VALUES (4, 20, 22);
+INSERT INTO Participa
+VALUES (4, 15, 22);
+INSERT INTO Participa
+VALUES (4, 16, 22);
+INSERT INTO Participa
+VALUES (4, 17, 22);
+INSERT INTO Participa
+VALUES (2, 15, 26);
+INSERT INTO Participa
+VALUES (2, 16, 26);
+INSERT INTO Participa
+VALUES (2, 17, 26);
+INSERT INTO Participa
+VALUES (3, 20, 63);
+INSERT INTO Participa
+VALUES (3, 18, 63);
+INSERT INTO Participa
+VALUES (1, 19, 64);
+INSERT INTO Participa
+VALUES (1, 20, 64);
+
+
+
+INSERT INTO Loot
+VALUES (sequence1.nextval, 'Bindings of the Herald', 'Binds when picked up', 320, 7);
+INSERT INTO Loot
+VALUES (sequence1.nextval, 'The Lady''s Necklace',
+        'The necklace shimmers, a remarkable piece of jewelry that doesn''t seem to succumb to the gloom that permeates the Ghostlands. Given the inscription, and where you found it, it must be the lost property of Lady Sylvanas Windrunner herself!',
+        1000, 7);
+INSERT INTO Loot
+VALUES (sequence1.nextval, 'Convergence of Fates', 'Binds when picked up', 400, 9);
+INSERT INTO Loot
+VALUES (sequence1.nextval, 'Mana-Tinged Pack',
+        'Contains assorted potions and magical reagents from the Broken Isles. Looted by players with the Manaseeker enchantment.',
+        50, 10);
+INSERT INTO Loot
+VALUES (sequence1.nextval, 'Warmace of Menethil', 'Binds when picked up', 430, 8);
+INSERT INTO Loot
+VALUES (sequence1.nextval, 'Cursed Lover''s Ring', 'No not touch! Ups I''ve touched it', 300, 6);
+INSERT INTO Loot (id_loot, nume, descriere, id_boss)
+VALUES (sequence1.nextval, 'Banshee''s Bow', 'A bow made out of a human spine. It has o dark violet glow.', 7);
+
+
+
+INSERT INTO Bonus
+VALUES (sequence1.nextval, 'Stamina', 18);
+INSERT INTO Bonus
+VALUES (sequence1.nextval, 'Haste', 39);
+INSERT INTO Bonus
+VALUES (sequence1.nextval, 'Versatility', 29);
+INSERT INTO Bonus
+VALUES (sequence1.nextval, 'Magic', 100);
+INSERT INTO Bonus
+VALUES (sequence1.nextval, 'Stamina', 50);
+INSERT INTO Bonus
+VALUES (sequence1.nextval, 'Atack speed', 20);
+INSERT INTO Bonus
+VALUES (sequence1.nextval, 'Mastery', 30);
+
+
+
+INSERT INTO Are
+VALUES (28, 43);
+INSERT INTO Are
+VALUES (28, 44);
+INSERT INTO Are
+VALUES (28, 45);
+INSERT INTO Are
+VALUES (30, 46);
+INSERT INTO Are
+VALUES (31, 47);
+INSERT INTO Are
+VALUES (31, 48);
+INSERT INTO Are
+VALUES (31, 49);
+INSERT INTO Are
+VALUES (32, 47);
+INSERT INTO Are
+VALUES (32, 48);
+INSERT INTO Are
+VALUES (32, 49);
+
+
+INSERT INTO Inamic_intermediar
+VALUES (sequence1.nextval, 'Fallen angel', 100, 12);
+INSERT INTO Inamic_intermediar
+VALUES (sequence1.nextval, 'Agatha', 200, 22);
+INSERT INTO Inamic_intermediar
+VALUES (sequence1.nextval, 'Fellfire huntdog', 200, 32);
+INSERT INTO Inamic_intermediar
+VALUES (sequence1.nextval, 'Shivara', 300, 14);
+INSERT INTO Inamic_intermediar
+VALUES (sequence1.nextval, 'Skeleton', 300, 12);
+
+
+INSERT INTO Se_afla
+VALUES (11, 66);
+INSERT INTO Se_afla
+VALUES (11, 67);
+INSERT INTO Se_afla
+VALUES (12, 68);
+INSERT INTO Se_afla
+VALUES (12, 69);
+INSERT INTO Se_afla
+VALUES (13, 70);
+INSERT INTO Se_afla
+VALUES (13, 66);
+INSERT INTO Se_afla
+VALUES (14, 67);
+INSERT INTO Se_afla
+VALUES (14, 68);
+INSERT INTO Se_afla
+VALUES (61, 69);
+INSERT INTO Se_afla
+VALUES (61, 70);
+INSERT INTO Se_afla
+VALUES (62, 68);
+INSERT INTO Se_afla
+VALUES (62, 69);
+
+
+INSERT INTO Abilitate
+VALUES (sequence1.nextval, 'Fury of Frostmourne', 10, 100, 8);
+INSERT INTO Abilitate
+VALUES (sequence1.nextval, 'Raise Dead', 20, 120, 8);
+INSERT INTO Abilitate
+VALUES (sequence1.nextval, 'Domination Arrows', 11, 101, 7);
+INSERT INTO Abilitate
+VALUES (sequence1.nextval, 'Stop Time', 12, 130, 9);
+INSERT INTO Abilitate
+VALUES (sequence1.nextval, 'Bond of Flame', 20, 300, 10);
+INSERT INTO Abilitate
+VALUES (sequence1.nextval, 'Catastrophic Failure', 18, 180, 6);
+
+
+INSERT INTO Bossfight
+VALUES (sequence1.nextval, 30, 6);
+INSERT INTO Bossfight
+VALUES (sequence1.nextval, 45, 7);
+INSERT INTO Bossfight
+VALUES (sequence1.nextval, 35, 8);
+INSERT INTO Bossfight
+VALUES (sequence1.nextval, 10, 9);
+INSERT INTO Bossfight
+VALUES (sequence1.nextval, 25, 10);
+
+
+
+INSERT INTO Etapa
+VALUES (sequence1.nextval, 'Arcane Orbs: Azshara will summon several Arcane Orbs around the middle of the encounter space.', 50, 79);
+INSERT INTO Etapa
+VALUES (sequence1.nextval, 'Ruin: Sylvanas will periodically cast this ability to lay waste to the entire raid. The raid must keep up with her to be in range to interrupt this cast to prevent a wipe.', 50, 80);
+INSERT INTO Etapa
+VALUES (sequence1.nextval, 'Haunting Wave: Sylvanas will shoot out a number of projectiles which will deal damage and push players back if hit.', 80, 80);
+INSERT INTO Etapa
+VALUES (sequence1.nextval, 'Fury of Frostmore: Lich King will cast this ability dealing 30 damage to all raid players.', 50, 81);
+INSERT INTO Etapa
+VALUES (sequence1.nextval, 'Stop time: Elisande will stop time to heal herself at full percent. It can be cast only 3 times.', 50, 82);
+INSERT INTO Etapa
+VALUES (sequence1.nextval, 'Bound of flame: Talixea whips all playes in 30 yard range dealing 200 damage.', 50, 83);
